@@ -89,7 +89,7 @@ points = Points(
     height = 80,
     alpha_1=150,
     alpha_2= 50,
-    total_points = 10000000000000,
+    total_points = 0,
     total_cps = 0,
     total_click_damage = 1
 )
