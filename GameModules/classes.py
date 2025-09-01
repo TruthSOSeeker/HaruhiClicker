@@ -1,8 +1,8 @@
 from pickle import GLOBAL
-
 import pygame
 from pygame import MOUSEBUTTONDOWN
 from GameModules.image_system import *
+from GameModules.sound_system import *
 
 pygame.init()
 
@@ -253,19 +253,37 @@ class Itsuki(Clicker):
 class Mikuru(Clicker):
     def __init__(self, x, y, width, height, image, buy_button_width, buy_button_height, cost, normal_color, hover_color, unaffordable_color, unaffordable_hover):
         super().__init__(x, y, width, height, image)
-        self.rect_buy = pygame.Rect(x + 30, y + 130, buy_button_width, buy_button_height)
+        self.rect_buy = pygame.Rect(x + 15, y + 130, buy_button_width, buy_button_height)
+        self.upgrade_button = pygame.Rect(220 - 30 + 646, 297, 170, 50)
+        self.time_travel_button = pygame.Rect(220 - 30 + 646, 850, 170, 50)
         self.cost = cost
         self.normal_color = normal_color
         self.hover_color = hover_color
         self.unaffordable_color = unaffordable_color
         self.unaffordable_hover = unaffordable_hover
+        self.level = 1
+        self.upgrade_cost = 23500
+        self.total_points = 0
         self.is_hovered = False
+        self.upgrade_button_hovered = False
+        self.time_travel_hovered = False
         self.is_bought = False
+        self.time_traveling = False
+        self.initiate_time = 0
+        self.time_travel_check = 0
+        self.time_travel_time = 0
+        self.reward_claimed = True
+        self.reward = 0
+        self.return_sound = False
     def update_hover_state(self, mouse_pos):
         if not self.is_bought:
             self.is_hovered = self.rect_buy.collidepoint(mouse_pos)
         else:
             self.is_hovered = self.rect.collidepoint(mouse_pos)
+    def update_upgrade_hover_state(self, mouse_pos):
+        self.upgrade_button_hovered = self.upgrade_button.collidepoint(mouse_pos)
+    def update_time_travel_hover_state(self, mouse_pos):
+        self.time_travel_hovered = self.time_travel_button.collidepoint(mouse_pos)
     def draw_buy_button(self, window, afford):
         if self.is_hovered:
             if afford:
@@ -300,24 +318,138 @@ class Mikuru(Clicker):
                 self.is_bought = True
                 return True
         return False
+    def time_travel_is_clicked(self, event):
+        if self.time_travel_check < -10000 and not self.time_traveling and self.time_travel_hovered and event.type == MOUSEBUTTONDOWN and event.button == 1:
+            return True
+        return False
+    def reward_claim_is_clicked(self, event):
+        if not self.time_traveling and not self.reward_claimed and self.time_travel_hovered and event.type == MOUSEBUTTONDOWN and event.button == 1:
+            return True
+        return False
+    def upgrade_button_clicked(self, event):
+        if self.upgrade_button_hovered and event.type == MOUSEBUTTONDOWN and event.button == 1:
+            return True
+        else:
+            return False
+    def draw_level_box(self, window):
+        pygame.draw.rect(window, grey, (220 + 645, 365, 110, 25), )  #####################################
+        pygame.draw.rect(window, black, (220 + 645, 365, 110, 25), 2)  ##################################
 
+        level_text = small_text_font.render(f"Level: {self.level}", True, black)
+        level_rect = level_text.get_rect()
+        level_rect.center = (220 + 700, 377)
+        window.blit(level_text, level_rect)
+
+    def draw_level_up_box(self, window):
+        if self.upgrade_button_hovered:
+            if self.total_points >= self.upgrade_cost:
+                pygame.draw.rect(window, grey, (220 - 30 + 646, 297, 170, 50))  #################################
+                pygame.draw.rect(window, black, (220 - 30 + 646, 297, 170, 50), 3)  #############################
+            else:
+                pygame.draw.rect(window, red, (220 - 30 + 646, 297, 170, 50))  #################################
+                pygame.draw.rect(window, black, (220 - 30 + 646, 297, 170, 50),3)  #####################################
+        else:
+            if self.total_points >= self.upgrade_cost:
+                pygame.draw.rect(window, white,(220 - 30 + 646, 297, 170, 50))  ###########################################
+                pygame.draw.rect(window, black, (220 - 30 + 646, 297, 170, 50),3)  ######################################
+            else:
+                pygame.draw.rect(window, pink, (220 - 30 + 646, 297, 170, 50))  ###################################
+                pygame.draw.rect(window, black, (220 - 30 + 646, 297, 170, 50), 3)  ####################################
+        upgrade_text = small_text_font.render(f"Upgrade Cost", True, black)
+        upgrade_rect = upgrade_text.get_rect()
+        upgrade_rect.center = (220 + 700, 312)
+        window.blit(upgrade_text, upgrade_rect)
+
+        level_up_cost = small_text_font.render(f"{self.upgrade_cost}", True, black)
+        level_up_rect = level_up_cost.get_rect()
+        level_up_rect.center = (220 + 700, 312 + 21) # Same, except + 22 to x coord, and + 21 to height
+        window.blit(level_up_cost, level_up_rect)
+    def draw_lower_box(self, window):
+        if not self.time_traveling:
+            if self.reward_claimed:
+                if self.time_travel_hovered:
+                    if self.time_travel_check < -60000:
+                        pygame.draw.rect(window, grey, (220 - 30 + 646, 850, 170, 50))
+                        pygame.draw.rect(window, black, (220 - 30 + 646, 850, 170, 50), 3)
+                        time_travel_text = small_text_font.render("Time Travel", True, black)
+                        time_travel_rect = time_travel_text.get_rect()
+                        time_travel_rect.topleft = (220 + 650, 864)
+                        window.blit(time_travel_text, time_travel_rect)
+                    else:
+                        pygame.draw.rect(window, red, (220 - 30 + 646, 850, 170, 50))
+                        pygame.draw.rect(window, black, (220 - 30 + 646, 850, 170, 50),3)
+                        time_travel_text = small_text_font.render("Preparing...", True, black)
+                        time_travel_rect = time_travel_text.get_rect()
+                        time_travel_rect.topleft = (220 + 650, 864)
+                        window.blit(time_travel_text, time_travel_rect)
+                else:
+                    if self.time_travel_check < -60000:
+                        pygame.draw.rect(window, white,(220 - 30 + 646, 850, 170, 50))
+                        pygame.draw.rect(window, black, (220 - 30 + 646, 850, 170, 50),3)
+                        time_travel_text = small_text_font.render("Time Travel", True, black)
+                        time_travel_rect = time_travel_text.get_rect()
+                        time_travel_rect.topleft = (220 + 650, 864)
+                        window.blit(time_travel_text, time_travel_rect)
+                    else:
+                        pygame.draw.rect(window, pink, (220 - 30 + 646, 850, 170, 50))
+                        pygame.draw.rect(window, black, (220 - 30 + 646, 850, 170, 50), 3)
+                        time_travel_text = small_text_font.render("Preparing...", True, black)
+                        time_travel_rect = time_travel_text.get_rect()
+                        time_travel_rect.topleft = (220 + 650, 864)
+                        window.blit(time_travel_text, time_travel_rect)
+        if not self.time_traveling and not self.reward_claimed:
+            if self.time_travel_hovered:
+                pygame.draw.rect(window, grey, (220 - 30 + 646, 850, 170, 50))
+                pygame.draw.rect(window, black, (220 - 30 + 646, 850, 170, 50), 3)
+                time_travel_text = small_text_font.render("Collect Points", True, black)
+                time_travel_rect = time_travel_text.get_rect()
+                time_travel_rect.topleft = (220 + 640, 854)
+                window.blit(time_travel_text, time_travel_rect)
+
+                time_travel_points = small_text_font.render(f"{round(self.reward)}", True, black)
+                time_travel_rect = time_travel_points.get_rect()
+                time_travel_rect.center = (220 + 700, 884)
+                window.blit(time_travel_points, time_travel_rect)
+
+            else:
+                pygame.draw.rect(window, white,(220 - 30 + 646, 850, 170, 50))
+                pygame.draw.rect(window, black, (220 - 30 + 646, 850, 170, 50),3)
+                time_travel_text = small_text_font.render("Collect Points", True, black)
+                time_travel_rect = time_travel_text.get_rect()
+                time_travel_rect.topleft = (220 + 640, 854)
+                window.blit(time_travel_text, time_travel_rect)
+
+                time_travel_points = small_text_font.render(f"{round(self.reward)}", True, black)
+                time_travel_rect = time_travel_points.get_rect()
+                time_travel_rect.center = (220 + 700, 884)
+                window.blit(time_travel_points, time_travel_rect)
+            if self.return_sound:
+                play_sound(teleport_back)
+                self.return_sound = False
 
 class Nagato(Clicker):
     def __init__(self, x, y, width, height, image, buy_button_width, buy_button_height, cost, normal_color, hover_color, unaffordable_color, unaffordable_hover):
         super().__init__(x, y, width, height, image)
-        self.rect_buy = pygame.Rect(x, y + 145, buy_button_width, buy_button_height)
+        self.rect_buy = pygame.Rect(x - 32, y + 145, buy_button_width, buy_button_height)
+        self.upgrade_button = pygame.Rect(275 + 120, 280, 170, 50)
         self.cost = cost
+        self.upgrade_cost = 890000
         self.normal_color = normal_color
         self.hover_color = hover_color
         self.unaffordable_color = unaffordable_color
         self.unaffordable_hover = unaffordable_hover
+        self.level = 1
+        self.total_points = 0
         self.is_hovered = False
         self.is_bought = False
+        self.upgrade_button_hovered = False
     def update_hover_state(self, mouse_pos):
         if not self.is_bought:
             self.is_hovered = self.rect_buy.collidepoint(mouse_pos)
         else:
             self.is_hovered = self.rect.collidepoint(mouse_pos)
+    def update_upgrade_hover_state(self, mouse_pos):
+        self.upgrade_button_hovered = self.upgrade_button.collidepoint(mouse_pos)
     def draw_buy_button(self, window, afford):
         if self.is_hovered:
             if afford:
@@ -338,7 +470,7 @@ class Nagato(Clicker):
         window.blit(buy_text, text_rect)
         buy_cost = small_text_font.render(f"Cost: {self.cost}", True, black)
         text_rect = buy_cost.get_rect()
-        text_rect.x = self.rect_buy.x + 37
+        text_rect.x = self.rect_buy.x + 25
         text_rect.y = 565
         window.blit(buy_cost, text_rect)
     def is_clicked(self, event):
@@ -352,6 +484,146 @@ class Nagato(Clicker):
                 self.is_bought = True
                 return True
         return False
+    def upgrade_button_clicked(self, event):
+        if self.upgrade_button_hovered and event.type == MOUSEBUTTONDOWN and event.button == 1:
+            return True
+        else:
+            return False
+    def draw_level_box(self, window):
+        pygame.draw.rect(window, grey, (220 + 205, 240 + 107, 110, 25), )
+        pygame.draw.rect(window, black, (220 + 205, 240 + 107, 110, 25), 2)
+
+        level_text = small_text_font.render(f"Level: {self.level}", True, black)
+        level_rect = level_text.get_rect()
+        level_rect.center = (275 + 205, 251 + 107)
+        window.blit(level_text, level_rect)
+    def draw_level_up_box(self, window):
+        if self.upgrade_button_hovered:
+            if self.total_points >= self.upgrade_cost:
+                pygame.draw.rect(window, grey, (275 + 119, 280, 170, 50))
+                pygame.draw.rect(window, black, (275 + 119, 280, 170, 50), 3)
+            else:
+                pygame.draw.rect(window, red, (275 + 119, 280, 170, 50))
+                pygame.draw.rect(window, black, (275 + 119, 280, 170, 50), 3)
+        else:
+            if self.total_points >= self.upgrade_cost:
+                pygame.draw.rect(window, white, (275 + 119, 280, 170, 50))
+                pygame.draw.rect(window, black, (275 + 119, 280, 170, 50), 3)
+            else:
+                pygame.draw.rect(window, pink, (275 + 119, 280, 170, 50))
+                pygame.draw.rect(window, black, (275 + 119, 280, 170, 50), 3)
+        upgrade_text = small_text_font.render(f"Upgrade Cost", True, black) #I want a thin line of only about 1 or 2 pixel width directly below this text
+        upgrade_rect = upgrade_text.get_rect()
+        upgrade_rect.center = (275 + 119 + 83, 280 + 14) ## + 83, + 14
+        window.blit(upgrade_text, upgrade_rect)
+
+        level_up_cost = small_text_font.render(f"{self.upgrade_cost}", True, black) #This can stay the same, no change needed
+        level_up_rect = level_up_cost.get_rect()
+        level_up_rect.center = (275 + 119 + 83, 280 + 35)
+        window.blit(level_up_cost, level_up_rect)
+
+
+class Haruhi(Clicker):
+        def __init__(self, x, y, width, height, image, cost):
+            super().__init__(x, y, width, height, image)
+            self.upgrade_button = pygame.Rect(220 + 420 - 31, 240 + 97 - 67, 170, 50)
+            self.upgrade_button_hovered = False
+            self.cost = cost
+            self.upgrade_cost = 21000000
+            self.is_hovered = False
+            self.is_bought = False
+            self.rect_buy = pygame.Rect(610, 555, 170 , 70)
+            self.level = 1
+            self.total_points = 0
+            self.exponential = 0.01
+            self.time_difference = -1
+            self.start_time = -1
+        def update_hover_state(self, mouse_pos):
+            if not self.is_bought:
+                self.is_hovered = self.rect_buy.collidepoint(mouse_pos)
+            else:
+                self.is_hovered = self.rect.collidepoint(mouse_pos)
+        def update_upgrade_hover_state(self, mouse_pos):
+            self.upgrade_button_hovered = self.upgrade_button.collidepoint(mouse_pos)
+        def draw_buy_button(self, window, afford):
+            if self.is_hovered:
+                if afford:
+                    pygame.draw.rect(window, grey, self.rect_buy)
+                else:
+                    pygame.draw.rect(window, red, self.rect_buy)
+            else:
+                if afford:
+                    pygame.draw.rect(window, white, self.rect_buy)
+                else:
+                    pygame.draw.rect(window, pink, self.rect_buy)
+            pygame.draw.rect(window, black, self.rect_buy, 3)
+        def draw_text(self, window):
+            buy_text = small_text_font.render(f"Unlock Haruhi", True, black)
+            text_rect = buy_text.get_rect()
+            text_rect.x = self.rect_buy.x + 21 + 2
+            text_rect.y = 540 + 25
+            window.blit(buy_text, text_rect)
+            buy_cost = small_text_font.render(f"Cost: {self.cost}", True, black)
+            text_rect = buy_cost.get_rect()
+            text_rect.x = self.rect_buy.x + 14
+            text_rect.y = 565 + 25
+            window.blit(buy_cost, text_rect)
+        def buy_button_clicked(self, event, afford):
+            if not self.is_bought:
+                if self.is_hovered and afford and event.type == MOUSEBUTTONDOWN and event.button == 1:
+                    self.is_bought = True
+                    return True
+            return False
+        def is_clicked(self, event):
+            if self.is_bought:
+                if self.is_hovered and event.type == MOUSEBUTTONDOWN and event.button == 1:
+                    return True
+            return False
+        def upgrade_button_clicked(self, event):
+            if self.upgrade_button_hovered and event.type == MOUSEBUTTONDOWN and event.button == 1:
+                return True
+            else:
+                return False
+        def draw_level_box(self, window):
+            pygame.draw.rect(window, grey, (220 + 420, 240 + 97, 110, 25), )
+            pygame.draw.rect(window, black, (220 + 420, 240 + 97, 110, 25), 2)
+
+            level_text = small_text_font.render(f"Level: {self.level}", True, black)
+            level_rect = level_text.get_rect()
+            level_rect.center = (275 + 420, 251 + 98)
+            window.blit(level_text, level_rect)
+        def draw_level_up_box(self, window):
+            if self.upgrade_button_hovered:
+                if self.total_points >= self.upgrade_cost:
+                    pygame.draw.rect(window, grey, (220 + 420 - 31, 240 + 97 - 67, 170, 50))
+                    pygame.draw.rect(window, black, (220 + 420 - 31, 240 + 97 - 67, 170, 50), 3)
+                else:
+                    pygame.draw.rect(window, red, (220 + 420 - 31, 240 + 97 - 67, 170, 50))
+                    pygame.draw.rect(window, black, (220 + 420 - 31, 240 + 97 - 67, 170, 50), 3)
+            else:
+                if self.total_points >= self.upgrade_cost:
+                    pygame.draw.rect(window, white, (220 + 420 - 31, 240 + 97 - 67, 170, 50))
+                    pygame.draw.rect(window, black, (220 + 420 - 31, 240 + 97 - 67, 170, 50), 3)
+                else:
+                    pygame.draw.rect(window, pink, (220 + 420 - 31, 240 + 97 - 67, 170, 50))
+                    pygame.draw.rect(window, black, (220 + 420 - 31, 240 + 97 - 67, 170, 50), 3)
+            upgrade_text = small_text_font.render(f"Upgrade Cost", True,black)
+            upgrade_rect = upgrade_text.get_rect()
+            upgrade_rect.center = ((220 + 420 - 31) + 83, (240 + 97 - 67) + 14)  ## + 83, + 14
+            window.blit(upgrade_text, upgrade_rect)
+
+            level_up_cost = small_text_font.render(f"{self.upgrade_cost}", True,black)
+            level_up_rect = level_up_cost.get_rect()
+            level_up_rect.center = ((220 + 420 - 31) + 85, 240 + 97 - 32)
+            window.blit(level_up_cost, level_up_rect)
+        def get_exponential(self):
+            if self.start_time < 0:
+                self.start_time = pygame.time.get_ticks()
+            else:
+                self.time_difference = pygame.time.get_ticks() - self.start_time
+                if self.time_difference < 1000:
+                    self.exponential += 0.0015
+                    self.start_time = -1
 
 
 class TransparentBox():
@@ -570,3 +842,247 @@ class BackgroundButton(TransparentBox):
         if self.buy_button_hovered and event.type == MOUSEBUTTONDOWN and event.button == 1:
             return True
         return False
+
+
+class BigBang():
+    def __init__(self):
+        self.x = 595
+        self.y = 20
+        self.width = 200
+        self.height = 100
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.total_points = 0
+        self.is_hovered = False
+    def is_hovering(self, mouse_pos):
+        self.is_hovered = self.rect.collidepoint(mouse_pos)
+    def is_clicked(self, event):
+        if self.is_hovered and event.type == MOUSEBUTTONDOWN and event.button == 1:
+            return True
+        return False
+    def draw_box(self, window):
+        if self.is_hovered:
+            if self.total_points >= 999999999999:
+                pygame.draw.rect(window, grey, (self.x, self.y, self.width, self.height))
+                pygame.draw.rect(window, black, (self.x, self.y, self.width, self.height), 5)
+            else:
+                pygame.draw.rect(window, red, (self.x, self.y, self.width, self.height))
+                pygame.draw.rect(window, black, (self.x, self.y, self.width, self.height), 5)
+        else:
+            if self.total_points >= 999999999999:
+                pygame.draw.rect(window, white, (self.x, self.y, self.width, self.height))
+                pygame.draw.rect(window, black, (self.x, self.y, self.width, self.height), 5)
+            else:
+                pygame.draw.rect(window, pink, (self.x, self.y, self.width, self.height))
+                pygame.draw.rect(window, black, (self.x, self.y, self.width, self.height), 5)
+
+        text = large_text_font.render("Big Bang", True, black)
+        text_rect = text.get_rect()
+        text_rect.center = (self.x + 100, self.y + 25)
+        window.blit(text, text_rect)
+
+        text = small_text_font.render("cost", True, black)
+        text_rect = text.get_rect()
+        text_rect.center = (self.x + 100, self.y + 58)
+        window.blit(text, text_rect)
+
+        text = small_text_font.render("999999999999", True, black)
+        text_rect = text.get_rect()
+        text_rect.center = (self.x + 100, self.y + 78)
+        window.blit(text, text_rect)
+
+
+class MusicButton():
+    def __init__(self):
+        self.x = 1200
+        self.y = 20
+        self.width = 170
+        self.height = 50
+        self.rect = pygame.Rect(self.x - 10, self.y, self.width + 15, self.height - 10)
+        self.rect_buy_button = pygame.Rect(self.x - 20, self.y, self.width + 20, self.height + 20)
+        self.alpha_1 = 150
+        self.alpha_2 = 50
+        self.total_points = 0
+        self.buy_button_hovered = False
+        self.circle_x = 1350
+        self.circle_y = 40
+        self.radius = 14
+        self.circle_center = self.x + 152, self.y + 23
+        self.circle_hovered = False
+    def update_buy_button_hover(self, mouse_pos):
+        self.buy_button_hovered = self.rect_buy_button.collidepoint(mouse_pos)
+    def buy_button_clicked(self, event):
+        if self.buy_button_hovered and event.type == MOUSEBUTTONDOWN and event.button == 1:
+            return True
+        return False
+    def draw_music_box(self, window):
+        border_width = 3
+
+        border_box = pygame.Surface((self.rect.width, self.rect.height))
+        border_box.set_alpha(self.alpha_1)
+        border_box.fill(black)
+        window.blit(border_box, (self.rect.x, self.rect.y))
+
+        inner_box = pygame.Surface((self.rect.width - border_width * 2, self.rect.height - border_width * 2))
+        inner_box.set_alpha(self.alpha_2)
+        inner_box.fill(black)
+        window.blit(inner_box, (self.rect.x + border_width, self.rect.y + border_width))
+    def draw_buy_box(self, window):
+        if self.buy_button_hovered:
+            if self.total_points >= 10000:
+                pygame.draw.rect(window, grey, (self.x - 10, self.y, self.width + 20, self.height + 20))
+                pygame.draw.rect(window, black, (self.x - 10, self.y, self.width + 20, self.height + 20), 3)
+            else:
+                pygame.draw.rect(window, red, (self.x - 10, self.y, self.width + 20, self.height + 20))
+                pygame.draw.rect(window, black, (self.x - 10, self.y, self.width + 20, self.height + 20), 3)
+        else:
+            if self.total_points >= 10000:
+                pygame.draw.rect(window, white, (self.x - 10, self.y, self.width + 20, self.height + 20))
+                pygame.draw.rect(window, black, (self.x - 10, self.y, self.width + 20, self.height + 20), 3)
+            else:
+                pygame.draw.rect(window, pink, (self.x - 10, self.y, self.width + 20, self.height + 20))
+                pygame.draw.rect(window, black, (self.x - 10, self.y, self.width + 20, self.height + 20), 3)
+
+        unlock_text = small_text_font.render("Unlock Music", True, black)
+        text_rect = unlock_text.get_rect()
+        text_rect.center = (self.x + 87, self.y + 20)
+        window.blit(unlock_text, text_rect)
+
+        text_cost = small_text_font.render("Cost: 10000", True, black)
+        text_rect = text_cost.get_rect()
+        text_rect.center = (self.x + 87, self.y + 45)
+        window.blit(text_cost, text_rect)
+    def draw_pause_button(self, window):
+        pause_text = small_text_font.render("Pause music:", True, white)
+        text_rect = pause_text.get_rect()
+        text_rect.center = (self.x + 62, self.y + 19)
+        window.blit(pause_text, text_rect)
+        if self.circle_hovered:
+            pygame.draw.circle(window, grey, (self.circle_x, self.circle_y), self.radius)
+        else:
+            pygame.draw.circle(window, white, (self.circle_x, self.circle_y), self.radius)
+    def update_pause_hover_state(self, mouse_pos):
+        mouse_x, mouse_y = mouse_pos
+        circle_x, circle_y = self.circle_center
+        distance = ((mouse_x - circle_x) ** 2 + (mouse_y - circle_y) ** 2) ** 0.5
+        self.circle_hovered = distance <= self.radius + 2
+    def pause_button_clicked(self, event):
+        if self.circle_hovered and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            return True
+        return False
+
+
+class Ability():
+    def __init__(self):
+        self.x = 1180
+        self.y = 865
+        self.width = 200
+        self.height = 50
+        self.large_box_x = 20
+        self.large_box_y = 20
+        self.large_box_width = 1360
+        self.large_box_height = 830
+        self.large_box = pygame.Rect(self.large_box_x, self.large_box_y, self.large_box_width, self.large_box_height)
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.circle_x = 1180 + 175
+        self.circle_y = 865 + 25
+        self.circle_center = (self.circle_x, self.circle_y)
+        self.alpha_1 = 150
+        self.alpha_2 = 50
+        self.circle_hovered = False
+        self.radius = 15
+    def update_hover_state(self, mouse_pos):
+        mouse_x, mouse_y = mouse_pos
+        center_x, center_y = self.circle_center
+        distance = ((mouse_x - center_x) ** 2 + (mouse_y - center_y) ** 2) ** 0.5
+        self.circle_hovered = distance <= self.radius
+
+    def draw_click_box(self, window):
+        border_width = 3
+
+        border_box = pygame.Surface((self.rect.width, self.rect.height))
+        border_box.set_alpha(self.alpha_1)
+        border_box.fill(black)
+        window.blit(border_box, (self.rect.x, self.rect.y))
+
+        inner_box = pygame.Surface((self.rect.width - border_width * 2, self.rect.height - border_width * 2))
+        inner_box.set_alpha(self.alpha_2)
+        inner_box.fill(black)
+        window.blit(inner_box, (self.rect.x + border_width, self.rect.y + border_width))
+
+        ability_text = small_text_font.render("Clicker Abilities:", True, white)
+        text_rect = ability_text.get_rect()
+        text_rect.center = (self.x + 80, self.y + 25)
+        window.blit(ability_text, text_rect)
+
+        if self.circle_hovered:
+            pygame.draw.circle(window, grey, (self.circle_x, self.circle_y), self.radius)
+        else:
+            pygame.draw.circle(window, white, (self.circle_x, self.circle_y), self.radius)
+
+        ability_question = small_text_font.render("?", True, black)
+        text_rect = ability_question.get_rect()
+        text_rect.center = (self.x + 175, self.y + 25)
+        window.blit(ability_question, text_rect)
+    def draw_massive_box(self, window):
+        if self.circle_hovered:
+            border_width = 5
+
+            border_box = pygame.Surface((self.large_box_width, self.large_box_height))
+            border_box.set_alpha(self.alpha_1)
+            border_box.fill(black)
+            window.blit(border_box, (self.large_box_x, self.large_box_y))
+
+            inner_box = pygame.Surface((self.large_box_width - border_width * 3, self.large_box_height - border_width * 3))
+            inner_box.set_alpha(self.alpha_2)
+            inner_box.fill(black)
+            window.blit(inner_box, (self.large_box_x + border_width, self.large_box_y + border_width))
+
+            header_text = large_text_font.render("Clicker Abilities", True, white)
+            header_text_rect = header_text.get_rect()
+            header_text_rect.topleft = (580, 40)
+            window.blit(header_text, header_text_rect)
+
+            kyon_text = normal_text_font.render("Kyon Clicker: Increases Click Damage for each level Kyon Clicker has.", True, white)
+            text_rect = kyon_text.get_rect()
+            text_rect.topleft = (60, 200)
+            window.blit(kyon_text, text_rect)
+            if self.itsuki_bought:
+                itsuki_text = normal_text_font.render("Itsuki Clicker: Increases Clicks per second (CPS) for each level of all clickers bought.", True, white)
+                text_rect = itsuki_text.get_rect()
+                text_rect.topleft = (60, 300)
+                window.blit(itsuki_text, text_rect)
+            else:
+                itsuki_unbought_text = normal_text_font.render("Itsuki Clicker: LOCKED", True, white)
+                text_rect = itsuki_unbought_text.get_rect()
+                text_rect.topleft = (60, 300)
+                window.blit(itsuki_unbought_text, text_rect)
+            if self.mikuru_bought:
+                mikuru_text = normal_text_font.render("Mikuru Clicker: Gathers clicks from the future. CPS boosts clicks gathered.", True, white)
+                text_rect = mikuru_text.get_rect()
+                text_rect.topleft = (60, 400)
+                window.blit(mikuru_text, text_rect)
+            else:
+                mikuru_text = normal_text_font.render("Mikuru Clicker: LOCKED", True, white)
+                text_rect = mikuru_text.get_rect()
+                text_rect.topleft = (60, 400)
+                window.blit(mikuru_text, text_rect)
+            if self.nagato_bought:
+                nagato_text = normal_text_font.render("Nagato Clicker: Multiplicatively increases Click Damage and CPS.", True, white)
+                text_rect = nagato_text.get_rect()
+                text_rect.topleft = (60, 500)
+                window.blit(nagato_text, text_rect)
+            else:
+                nagato_text = normal_text_font.render("Nagato Clicker: LOCKED", True, white)
+                text_rect = nagato_text.get_rect()
+                text_rect.topleft = (60, 500)
+                window.blit(nagato_text, text_rect)
+            if self.haruhi_bought:
+                haruhi_text = normal_text_font.render("Haruhi Clicker: Increases click damage and CPS exponentially and continuously.", True, white)
+                text_rect = haruhi_text.get_rect()
+                text_rect.topleft = (60, 600)
+                window.blit(haruhi_text, text_rect)
+            else:
+                haruhi_text = normal_text_font.render("Haruhi Clicker: LOCKED", True, white)
+                text_rect = haruhi_text.get_rect()
+                text_rect.topleft = (60, 600)
+                window.blit(haruhi_text, text_rect)
