@@ -89,7 +89,7 @@ points = Points(
     height = 80,
     alpha_1=150,
     alpha_2= 50,
-    total_points = 0,
+    total_points = 1000000000,
     total_cps = 0,
     total_click_damage = 1
 )
@@ -247,7 +247,8 @@ while game_running:
             playing_music = True
             music_bought = True
             lofi_music = load_background_music("assets/audio/music/lofi_music.mp3")
-            play_background_music(lofi_music)
+            if lofi_music:
+                play_background_music(-1)
         if music_bought and music_button.pause_button_clicked(event):
             if playing_music:
                 pause_background_music()
@@ -320,7 +321,7 @@ while game_running:
         nagato_clicker.draw_level_box(window)
         nagato_clicker.draw_level_up_box(window)
     else:
-        nagato_clicker.draw_buy_button(window, afford =points.total_points >= 860000)
+        nagato_clicker.draw_buy_button(window, afford =points.total_points >= 760000)
         nagato_clicker.draw_text(window)
     if haruhi_clicker.is_bought:
         haruhi_clicker.update_animation()

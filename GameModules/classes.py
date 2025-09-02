@@ -617,13 +617,8 @@ class Haruhi(Clicker):
             level_up_rect.center = ((220 + 420 - 31) + 85, 240 + 97 - 32)
             window.blit(level_up_cost, level_up_rect)
         def get_exponential(self):
-            if self.start_time < 0:
-                self.start_time = pygame.time.get_ticks()
-            else:
-                self.time_difference = pygame.time.get_ticks() - self.start_time
-                if self.time_difference < 1000:
-                    self.exponential += 0.0015
-                    self.start_time = -1
+            self.exponential += 0.0015
+
 
 
 class TransparentBox():

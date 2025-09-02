@@ -1,13 +1,19 @@
 import pygame
+import sys
+import os
 
 pygame.mixer.init()
 def load_background_music(file_path):
     try:
-        pygame.mixer.music.load(file_path)
-        print("Music loaded")
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+            full_path = os.path.join(base_path, file_path)
+        else:
+            full_path = file_path
+
+        pygame.mixer.music.load(full_path)
         return True
     except pygame.error:
-        print("Could not load music")
         return False
 
 def play_background_music(loops = -1):

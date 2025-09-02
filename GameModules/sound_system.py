@@ -1,14 +1,23 @@
+import os
+import sys
+
 import pygame
 
 pygame.mixer.init()
 
 def load_sound(file_path):
     try:
-        sound = pygame.mixer.Sound(file_path)
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+            full_path = os.path.join(base_path, file_path)
+        else:
+            full_path = file_path
+
+        sound = pygame.mixer.Sound(full_path)
         return sound
-    except pygame.error as e:
-        print(f"Could not load sound: {e}")
+    except pygame.error:
         return None
+
 def play_sound(sound):
     sound.play()
 

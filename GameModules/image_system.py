@@ -1,10 +1,20 @@
+import os
+import sys
+
 import pygame
+
+
 def load_image(file_path):
     try:
-        image = pygame.image.load(file_path)
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+            full_path = os.path.join(base_path, file_path)
+        else:
+            full_path = file_path
+
+        image = pygame.image.load(full_path)
         return image
     except pygame.error:
-        print("Could not load image")
         return None
 #background images
 background_1 = load_image("assets/images/background_1.jpg") #dimensions 1400, 930
